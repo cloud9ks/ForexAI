@@ -1,0 +1,105 @@
+# ================================================================================
+# FOREX AI TRADING AGENT - Requirements
+# ================================================================================
+# NexNow LTD
+#
+# Installazione:
+#   pip install -r requirements.txt
+#
+# Per GPU (CUDA 12.1):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# ================================================================================
+
+# ==== CORE DATA ====
+pandas>=2.0.0
+numpy>=1.24.0
+pyarrow>=14.0.0
+polars>=0.19.0  # Alternativa veloce a pandas
+
+# ==== MACHINE LEARNING ====
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# ==== DEEP LEARNING ====
+torch>=2.1.0
+pytorch-lightning>=2.1.0
+transformers>=4.35.0
+einops>=0.7.0
+
+# ==== TIME SERIES SPECIFIC ====
+pytorch-forecasting>=1.0.0  # Per TFT
+# neuralforecast>=1.6.0  # Alternativa
+darts>=0.26.0  # Altra libreria time series
+
+# ==== REINFORCEMENT LEARNING ====
+stable-baselines3>=2.2.0
+gymnasium>=0.29.0
+sb3-contrib>=2.2.0  # Extra algorithms
+
+# ==== TECHNICAL ANALYSIS ====
+ta>=0.10.0
+# ta-lib>=0.4.28  # Richiede build separato, vedi note sotto
+pandas-ta>=0.3.14b
+
+# ==== TRADING & DATA ====
+MetaTrader5>=5.0.45  # Solo Windows
+yfinance>=0.2.30
+fredapi>=0.5.1
+ccxt>=4.1.0  # Per crypto se serve
+
+# ==== VISUALIZATION ====
+matplotlib>=3.8.0
+seaborn>=0.13.0
+plotly>=5.18.0
+
+# ==== EXPERIMENT TRACKING ====
+wandb>=0.16.0
+tensorboard>=2.15.0
+mlflow>=2.9.0
+
+# ==== UTILITIES ====
+tqdm>=4.66.0
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+joblib>=1.3.0
+requests>=2.31.0
+
+# ==== OPTIMIZATION ====
+optuna>=3.4.0  # Hyperparameter tuning
+ray[tune]>=2.8.0  # Distributed training
+
+# ==== CODE QUALITY ====
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.1.0
+pytest>=7.4.0
+
+# ================================================================================
+# NOTE INSTALLAZIONE TA-LIB
+# ================================================================================
+# TA-Lib richiede le librerie C. Su Windows:
+#   1. Scarica da: https://github.com/cgohlke/talib-build/releases
+#   2. pip install TA_Lib-0.4.28-cp310-cp310-win_amd64.whl
+#
+# Su Linux:
+#   sudo apt-get install libta-lib-dev
+#   pip install ta-lib
+#
+# Su Mac:
+#   brew install ta-lib
+#   pip install ta-lib
+# ================================================================================
+
+# ================================================================================
+# NOTE GPU
+# ================================================================================
+# Per CUDA 11.8:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#
+# Per CUDA 12.1:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#
+# Per verificare:
+#   python -c "import torch; print(torch.cuda.is_available())"
+# ================================================================================

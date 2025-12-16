@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+agent_trading.log
+
+# Data (too large for git)
+forex_ai_project/data/*.parquet
+forex_ai_project/data/*.csv
+
+# Models (use Git LFS or download separately)
+# Uncomment if models are too large:
+# forex_ai_project/models/**/*.pt
+
+# Reports
+forex_ai_project/reports/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+nul

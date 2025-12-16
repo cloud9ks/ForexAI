@@ -1,0 +1,31 @@
+{
+  "training_time": "0:02:51.230479",
+  "total_updates": 30,
+  "total_steps": 1000000,
+  "steps_per_second": 5840.081776562688,
+  "best_sharpe": -Infinity,
+  "config": {
+    "initial_balance": "10000",
+    "leverage": "30",
+    "spread_pips": "1.5",
+    "commission_per_lot": "7",
+    "max_position_size": "0.1",
+    "gamma": "0.99",
+    "gae_lambda": "0.95",
+    "clip_epsilon": "0.2",
+    "entropy_coef": "0.01",
+    "value_coef": "0.5",
+    "max_grad_norm": "0.5",
+    "learning_rate": "0.0003",
+    "batch_size": "2048",
+    "n_epochs": "4",
+    "n_steps": "1024",
+    "n_envs": "32",
+    "total_timesteps": "1000000",
+    "hidden_size": "1024",
+    "n_layers": "4",
+    "reward_scaling": "100",
+    "win_bonus": "0.1",
+    "drawdown_penalty": "0.5"
+  }
+}

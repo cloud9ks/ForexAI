@@ -1,0 +1,26 @@
+{
+  "model": "lstm",
+  "accuracy": 38.64339322960737,
+  "class_accuracy": {
+    "SELL": 36.88254511294009,
+    "HOLD": 49.616435803466054,
+    "BUY": 26.558407543216344
+  },
+  "training_time": "0:46:39.278603",
+  "config": {
+    "data_dir": "C:\\Users\\Alessandro\\Desktop\\forex_ai_project\\forex_ai_project\\data\\processed",
+    "models_dir": "C:\\Users\\Alessandro\\Desktop\\forex_ai_project\\forex_ai_project\\models",
+    "batch_size": "512",
+    "epochs": "100",
+    "learning_rate": "0.001",
+    "weight_decay": "1e-05",
+    "patience": "10",
+    "seq_length": "100",
+    "hidden_size": "256",
+    "num_layers": "3",
+    "dropout": "0.2",
+    "num_workers": "4",
+    "pin_memory": "True"
+  },
+  "n_params": 4158724
+}

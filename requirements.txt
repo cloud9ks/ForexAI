@@ -1,0 +1,21 @@
+# AI Trading Agent - Requirements
+# ================================
+
+# Core ML
+torch>=2.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Trading
+MetaTrader5>=5.0.45
+
+# AI Agent
+openai>=1.0.0
+requests>=2.31.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# Utils
+python-dateutil>=2.8.2
+beautifulsoup4>=4.12.0

@@ -1,0 +1,24 @@
+{
+  "training_time": "0:02:04.951384",
+  "total_steps": 500000,
+  "best_return": -2.4804453346074107,
+  "config": {
+    "initial_balance": 10000,
+    "transaction_cost": 0.0002,
+    "max_position": 1.0,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_epsilon": 0.2,
+    "entropy_coef": 0.01,
+    "value_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "learning_rate": 0.0001,
+    "batch_size": 256,
+    "n_epochs": 4,
+    "n_steps": 256,
+    "n_envs": 8,
+    "total_timesteps": 500000,
+    "hidden_size": 128,
+    "n_layers": 2
+  }
+}
