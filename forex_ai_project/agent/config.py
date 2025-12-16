@@ -17,7 +17,7 @@ TRADING_CONFIG = {
     'pairs': ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'],
 
     # Risk Management
-    'risk_per_trade': 0.01,         # 1% per trade
+    'risk_per_trade': 0.0065,       # 0.65% per trade (ottimizzato per DD < 15%)
     'max_daily_risk': 0.03,         # 3% max rischio giornaliero
     'max_trades_per_day': 2,
     'max_open_positions': 3,

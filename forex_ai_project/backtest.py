@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 # CONFIGURAZIONE BACKTEST
 # ============================================================================
 CONFIG = {
-    'initial_capital': 10000,     # Capitale iniziale USD
-    'risk_per_trade': 0.01,       # 1% rischio per trade
+    'initial_capital': 100000,    # Capitale iniziale USD (100k)
+    'risk_per_trade': 0.0065,     # 0.65% rischio per trade (ridotto per DD < 15%)
     'spread_pips': 1.5,           # Spread medio
     'slippage_pips': 0.5,         # Slippage
     'commission_per_lot': 7,      # Commissione per lotto standard
@@ -29,6 +29,7 @@ CONFIG = {
     'stop_loss_atr': 1.5,         # SL in multipli di ATR (ratio 2:1)
     'min_bars_between_trades': 72, # Min 72 ore (3 giorni) tra trades per coppia
     'max_trades_per_day': 2,      # Max 2 trades al giorno totali
+    'max_lot_size': 10.0,         # Max lotti per trade (per 100k)
 }
 
 
@@ -101,9 +102,10 @@ class BacktestEngine:
         self.daily_returns = []
 
     def calculate_position_size(self, price, atr):
-        """Calcola size posizione basata sul rischio - FIXED"""
-        # Usa capitale iniziale per evitare esplosione
-        base_capital = min(self.capital, self.config['initial_capital'] * 2)
+        """Calcola size posizione basata sul rischio - FIXED SIZING"""
+        # Usa capitale INIZIALE per evitare over-leveraging
+        # Questo mantiene risk costante e previene esplosione DD
+        base_capital = self.config['initial_capital']
 
         risk_amount = base_capital * self.config['risk_per_trade']
         sl_pips = atr * self.config['stop_loss_atr'] * 10000  # Converti in pips
@@ -113,9 +115,10 @@ class BacktestEngine:
         # Valore pip per lotto standard (circa $10 per major pairs)
         pip_value = 10
 
-        # Lotti - con limiti realistici
+        # Lotti - sizing fisso basato su capitale iniziale
         lots = risk_amount / (sl_pips * pip_value)
-        lots = min(lots, 1.0)  # Max 1 lotto per trade
+        max_lots = self.config.get('max_lot_size', 5.0)
+        lots = min(lots, max_lots)  # Max lotti configurabile
         lots = max(lots, 0.01)  # Minimo 0.01 lotti
 
         return round(lots, 2)
