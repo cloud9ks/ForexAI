@@ -16,6 +16,7 @@ import json
 from .config import TRADING_CONFIG, AGENT_CONFIG, OPENAI_API_KEY
 from .macro_analyzer import get_macro_analyzer
 from .news_sentiment import get_news_analyzer
+from .dxy_model import get_dxy_model
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,14 @@ class DecisionEngine:
     - Segnali LSTM (tecnici)
     - Analisi Macro (calendario economico)
     - News Sentiment
-    - Ragionamento AI (GPT-4)
+    - DXY Model (Enrico's macro model)
+    - Ragionamento AI (GPT-5.1)
     """
 
     def __init__(self):
         self.macro_analyzer = get_macro_analyzer()
         self.news_analyzer = get_news_analyzer()
+        self.dxy_model = get_dxy_model()
 
         # Initialize OpenAI client
         if OPENAI_API_KEY:
@@ -108,7 +111,13 @@ class DecisionEngine:
         # Step 4: News sentiment
         news_analysis = self.news_analyzer.analyze_news_for_pair(pair)
 
-        # Step 5: AI Reasoning (if available)
+        # Step 5: DXY Model (Enrico's macro model)
+        dxy_analysis = self.dxy_model.get_pair_bias(pair)
+        dxy_bonus = self.dxy_model.get_confidence_bonus(pair, lstm_signal)
+        result['dxy_analysis'] = dxy_analysis
+        result['dxy_bonus'] = dxy_bonus
+
+        # Step 6: AI Reasoning (if available)
         if self.openai_client:
             ai_decision = self._get_ai_decision(
                 pair=pair,
@@ -116,18 +125,28 @@ class DecisionEngine:
                 lstm_confidence=lstm_confidence,
                 macro_context=macro_context,
                 news_analysis=news_analysis,
+                dxy_analysis=dxy_analysis,
                 current_price=current_price,
                 atr=atr
             )
+            # Apply DXY bonus to confidence
+            if ai_decision.get('should_trade') and dxy_bonus > 0:
+                ai_decision['confidence'] = min(1.0, ai_decision['confidence'] + dxy_bonus)
+                ai_decision['reasoning'] += f" [DXY bonus +{dxy_bonus*100:.0f}%]"
             result.update(ai_decision)
         else:
             # Fallback: Rule-based decision
-            result.update(self._rule_based_decision(
+            rule_decision = self._rule_based_decision(
                 lstm_signal=lstm_signal,
                 lstm_confidence=lstm_confidence,
                 macro_bias=macro_context['macro_bias'],
                 news_bias=news_analysis['overall_bias']
-            ))
+            )
+            # Apply DXY bonus to confidence
+            if rule_decision.get('should_trade') and dxy_bonus > 0:
+                rule_decision['confidence'] = min(1.0, rule_decision['confidence'] + dxy_bonus)
+                rule_decision['reasoning'] += f" [DXY bonus +{dxy_bonus*100:.0f}%]"
+            result.update(rule_decision)
 
         # Calculate SL/TP if trade approved
         if result['should_trade']:
@@ -188,6 +207,7 @@ class DecisionEngine:
         lstm_confidence: float,
         macro_context: Dict,
         news_analysis: Dict,
+        dxy_analysis: Dict,
         current_price: float,
         atr: float
     ) -> Dict:
@@ -214,11 +234,16 @@ class DecisionEngine:
 - Quote Currency ({pair[3:6]}) Sentiment: {news_analysis['quote_sentiment']:+.2f}
 - Confidence: {news_analysis['confidence']:.1%}
 
+## DXY MACRO MODEL (FED vs ECB Balance Sheet)
+- USD Bias: {dxy_analysis['usd_bias']}
+- {pair} Bias: {dxy_analysis['pair_bias']}
+- Favors: {dxy_analysis['aligned_with'] or 'NEUTRAL'}
+
 ## TRADING RULES
 - Only trade if LSTM confidence > 70%
-- Prefer trades where technical, macro, and sentiment align
+- Prefer trades where technical, macro, sentiment, and DXY align
 - Avoid trading before high-impact news events
-- Risk: 1% per trade, R:R ratio 1:2
+- Risk: 0.65% per trade, R:R ratio 1:2
 
 ## YOUR TASK
 Analyze all factors and provide your decision in the following JSON format:
