@@ -6,6 +6,12 @@ AI TRADING AGENT - CONFIGURATION
 
 # API Keys (da settare come environment variables)
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")  # newsapi.org

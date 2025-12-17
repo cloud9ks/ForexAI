@@ -441,9 +441,10 @@ class AITradingAgent:
 def main():
     parser = argparse.ArgumentParser(description='AI Trading Agent')
     parser.add_argument('--mode', choices=['demo', 'live', 'simulation'], default='demo')
+    parser.add_argument('--confirm', action='store_true', help='Skip live mode confirmation')
     args = parser.parse_args()
 
-    if args.mode == 'live':
+    if args.mode == 'live' and not args.confirm:
         confirm = input("WARNING: LIVE mode with real money! Confirm? (yes/no): ")
         if confirm.lower() != 'yes':
             print("Cancelled")
