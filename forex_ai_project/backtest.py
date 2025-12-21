@@ -24,7 +24,7 @@ CONFIG = {
     'slippage_pips': 0.5,         # Slippage
     'commission_per_lot': 7,      # Commissione per lotto standard
     'leverage': 30,               # Leva
-    'min_confidence': 0.70,       # Confidenza minima 70% (più selettivo)
+    'min_confidence': 0.66,       # Confidenza minima 66% (simula AI Agent)
     'take_profit_atr': 3.0,       # TP in multipli di ATR (3x)
     'stop_loss_atr': 1.5,         # SL in multipli di ATR (ratio 2:1)
     'min_bars_between_trades': 72, # Min 72 ore (3 giorni) tra trades per coppia

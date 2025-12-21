@@ -29,7 +29,7 @@ TRADING_CONFIG = {
     'max_open_positions': 3,
 
     # Entry Rules
-    'min_lstm_confidence': 0.70,    # Confidenza LSTM minima
+    'min_lstm_confidence': 0.66,    # Confidenza LSTM minima (66% per più trade)
     'min_agent_confidence': 0.60,   # Confidenza Agent minima
 
     # Position Sizing
