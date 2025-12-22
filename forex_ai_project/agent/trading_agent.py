@@ -291,10 +291,14 @@ class AITradingAgent:
         signal = ['SELL', 'HOLD', 'BUY'][pred]
         return signal, confidence, atr
 
-    def execute_trade(self, pair: str, signal: str, sl: float, tp: float) -> bool:
-        """Execute trade on MT5."""
+    def execute_trade(self, pair: str, signal: str, sl: float, tp: float, risk_adjustment: float = 1.0) -> bool:
+        """Execute trade on MT5.
+
+        Args:
+            risk_adjustment: CVOL risk factor (1.0 = normal, 0.5 = WARNING, 0.0 = EXTREME)
+        """
         if self.mode == 'simulation':
-            logger.info(f"[SIMULATION] Would execute: {signal} {pair} | SL: {sl:.5f} | TP: {tp:.5f}")
+            logger.info(f"[SIMULATION] Would execute: {signal} {pair} | SL: {sl:.5f} | TP: {tp:.5f} | Risk adj: {risk_adjustment:.0%}")
             return True
 
         symbol_info = mt5.symbol_info(pair)
@@ -309,11 +313,28 @@ class AITradingAgent:
         if tick is None:
             return False
 
-        # Calculate lot size
+        # Calculate lot size with proper risk sizing
         account = mt5.account_info()
-        risk_amount = account.balance * TRADING_CONFIG['risk_per_trade']
+
+        # Apply CVOL risk adjustment (0.5 for WARNING, 1.0 for OK)
+        adjusted_risk = TRADING_CONFIG['risk_per_trade'] * risk_adjustment
+        risk_amount = account.balance * adjusted_risk
+
         sl_pips = abs(tick.ask - sl) * 10000 if signal == 'BUY' else abs(tick.bid - sl) * 10000
-        lot_size = min(max(risk_amount / (sl_pips * 10), 0.01), 1.0)
+
+        # Ensure minimum SL of 10 pips to avoid oversizing
+        if sl_pips < 10:
+            sl_pips = 10
+
+        # Calculate lot size: risk$ / (SL_pips * pip_value)
+        # pip_value ≈ $10 per lot for major pairs
+        lot_size = risk_amount / (sl_pips * 10)
+
+        # Apply limits from config
+        max_lots = TRADING_CONFIG.get('max_lot_size', 5.0)
+        lot_size = min(max(lot_size, 0.01), max_lots)
+
+        logger.info(f"Position sizing: Risk {adjusted_risk:.2%} → ${risk_amount:.0f} → {lot_size:.2f} lots (SL: {sl_pips:.0f} pips)")
 
         # Order parameters
         if signal == 'BUY':
@@ -357,6 +378,9 @@ class AITradingAgent:
         logger.info(f"ANALYZING: {pair}")
         logger.info(f"{'='*50}")
 
+        # Get market data for CVOL calculation
+        market_data = self.get_market_data(pair)
+
         # Get LSTM prediction
         lstm_signal, lstm_confidence, atr = self.get_lstm_prediction(pair)
         logger.info(f"LSTM: {lstm_signal} ({lstm_confidence:.1%}) | ATR: {atr:.5f}")
@@ -365,14 +389,20 @@ class AITradingAgent:
         tick = mt5.symbol_info_tick(pair)
         current_price = tick.ask if tick else 0
 
-        # Get decision from engine (combines LSTM + Macro + News + AI)
+        # Get decision from engine (combines LSTM + Macro + News + CVOL + AI)
         decision = self.decision_engine.evaluate_trade(
             pair=pair,
             lstm_signal=lstm_signal,
             lstm_confidence=lstm_confidence,
             current_price=current_price,
-            atr=atr
+            atr=atr,
+            market_data=market_data
         )
+
+        # Log CVOL status if available
+        if decision.get('cvol_status'):
+            cvol = decision['cvol_status']
+            logger.info(f"CVOL: {cvol['cvol']:.1f} ({cvol['status']}) → Risk adj: {decision['risk_adjustment']:.0%}")
 
         # Log decision
         logger.info(f"DECISION: {decision['final_signal']} (conf: {decision['confidence']:.1%})")
@@ -399,7 +429,8 @@ class AITradingAgent:
                         pair=pair,
                         signal=decision['final_signal'],
                         sl=decision['stop_loss'],
-                        tp=decision['take_profit']
+                        tp=decision['take_profit'],
+                        risk_adjustment=decision.get('risk_adjustment', 1.0)
                     )
 
                     if success:

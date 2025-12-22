@@ -47,14 +47,15 @@ CONFIG = {
     'pairs': ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'],
     'timeframe': mt5.TIMEFRAME_H1,
     'lookback_bars': 100,           # Barre per calcolo features
-    'min_confidence': 0.70,         # Confidenza minima per trade
-    'risk_per_trade': 0.01,         # 1% rischio per trade
+    'min_confidence': 0.66,         # Confidenza minima per trade (allineata con agent)
+    'risk_per_trade': 0.0065,       # 0.65% rischio per trade (allineato con agent)
     'take_profit_atr': 3.0,         # TP in multipli ATR
     'stop_loss_atr': 1.5,           # SL in multipli ATR
     'max_trades_per_day': 2,        # Max trades giornalieri
     'min_hours_between_trades': 72, # Min ore tra trades per coppia
     'active_hours': (8, 20),        # Sessioni attive (UTC)
     'magic_number': 123456,         # ID per identificare ordini
+    'max_lot_size': 5.0,            # Max lotti per trade (allineato con agent)
 }
 
 # ============================================================================
@@ -359,7 +360,7 @@ class LiveTrader:
         return True, "OK"
 
     def calculate_lot_size(self, pair, atr):
-        """Calcola dimensione posizione."""
+        """Calcola dimensione posizione con proper risk sizing."""
         account = mt5.account_info()
         if not account:
             return 0.01
@@ -374,8 +375,13 @@ class LiveTrader:
         pip_value = 10  # Per major pairs
 
         lots = risk_amount / (sl_pips * pip_value)
-        lots = min(lots, 1.0)
+
+        # Apply max lot limit from config
+        max_lots = CONFIG.get('max_lot_size', 5.0)
+        lots = min(lots, max_lots)
         lots = max(lots, 0.01)
+
+        logger.info(f"Position sizing: Risk ${risk_amount:.0f} → {lots:.2f} lots (SL: {sl_pips:.0f} pips)")
 
         return round(lots, 2)
 

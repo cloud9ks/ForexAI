@@ -29,7 +29,7 @@ CONFIG = {
     'stop_loss_atr': 1.5,         # SL in multipli di ATR (ratio 2:1)
     'min_bars_between_trades': 72, # Min 72 ore (3 giorni) tra trades per coppia
     'max_trades_per_day': 2,      # Max 2 trades al giorno totali
-    'max_lot_size': 10.0,         # Max lotti per trade (per 100k)
+    'max_lot_size': 5.0,          # Max lotti per trade (allineato con live trading)
 }
 
 

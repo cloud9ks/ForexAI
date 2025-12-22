@@ -27,6 +27,7 @@ TRADING_CONFIG = {
     'max_daily_risk': 0.03,         # 3% max rischio giornaliero
     'max_trades_per_day': 2,
     'max_open_positions': 3,
+    'max_lot_size': 5.0,            # Max lotti per trade (allineato con backtest)
 
     # Entry Rules
     'min_lstm_confidence': 0.66,    # Confidenza LSTM minima (66% per più trade)
@@ -41,6 +42,20 @@ TRADING_CONFIG = {
 
     # Cooldown
     'min_hours_between_trades': 72,  # 3 giorni per coppia
+}
+
+# CVOL Configuration (Currency Volatility Warning System)
+CVOL_CONFIG = {
+    # Soglie di default (verranno aggiornate dinamicamente se disponibili dati)
+    'default_warning_level': 13.0,   # CVOL sopra questo → WARNING (risk -50%)
+    'default_extreme_level': 19.0,   # CVOL sopra questo → SKIP trade
+
+    # Risk adjustment
+    'warning_risk_factor': 0.5,      # 50% del risk normale in WARNING
+    'extreme_risk_factor': 0.0,      # 0% = no trade in EXTREME
+
+    # Cache
+    'cache_duration_hours': 1,       # Ricalcola CVOL ogni ora
 }
 
 # Agent Configuration

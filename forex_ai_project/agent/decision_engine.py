@@ -17,6 +17,8 @@ from .config import TRADING_CONFIG, AGENT_CONFIG, OPENAI_API_KEY
 from .macro_analyzer import get_macro_analyzer
 from .news_sentiment import get_news_analyzer
 from .dxy_model import get_dxy_model
+from .cvol_monitor import get_cvol_monitor
+from .fed_sentiment_model import get_fed_sentiment_model
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,8 @@ class DecisionEngine:
         self.macro_analyzer = get_macro_analyzer()
         self.news_analyzer = get_news_analyzer()
         self.dxy_model = get_dxy_model()
+        self.cvol_monitor = get_cvol_monitor()
+        self.fed_sentiment = get_fed_sentiment_model()
 
         # Initialize OpenAI client
         if OPENAI_API_KEY:
@@ -55,7 +59,8 @@ class DecisionEngine:
         lstm_signal: str,
         lstm_confidence: float,
         current_price: float,
-        atr: float
+        atr: float,
+        market_data: Optional[Dict] = None
     ) -> Dict:
         """
         Valuta se eseguire un trade combinando tutti i fattori.
@@ -66,6 +71,7 @@ class DecisionEngine:
             lstm_confidence: Confidenza LSTM (0-1)
             current_price: Prezzo corrente
             atr: ATR corrente
+            market_data: DataFrame OHLC opzionale per CVOL calculation
 
         Returns:
             Dizionario con decisione e reasoning
@@ -82,6 +88,8 @@ class DecisionEngine:
             'stop_loss': None,
             'take_profit': None,
             'risk_checks': {},
+            'cvol_status': None,
+            'risk_adjustment': 1.0,
         }
 
         # Step 1: Basic LSTM filter
@@ -92,6 +100,18 @@ class DecisionEngine:
         if lstm_confidence < TRADING_CONFIG['min_lstm_confidence']:
             result['reasoning'] = f"LSTM confidence too low: {lstm_confidence:.1%} < {TRADING_CONFIG['min_lstm_confidence']:.1%}"
             return result
+
+        # Step 1.5: CVOL Check (Volatility Warning System)
+        cvol_status = self.cvol_monitor.get_cvol_status(pair, market_data)
+        result['cvol_status'] = cvol_status
+        result['risk_adjustment'] = cvol_status['risk_factor']
+
+        if cvol_status['status'] == 'EXTREME':
+            result['reasoning'] = f"CVOL EXTREME: {cvol_status['message']} - Trade blocked"
+            return result
+
+        if cvol_status['status'] == 'WARNING':
+            logger.warning(f"CVOL WARNING for {pair}: {cvol_status['message']}")
 
         # Step 2: Risk checks
         risk_checks = self._check_risk_rules(pair)
@@ -111,11 +131,24 @@ class DecisionEngine:
         # Step 4: News sentiment
         news_analysis = self.news_analyzer.analyze_news_for_pair(pair)
 
-        # Step 5: DXY Model (Enrico's macro model)
+        # Step 5: DXY Model (Quarterly - Balance Sheet)
         dxy_analysis = self.dxy_model.get_pair_bias(pair)
-        dxy_bonus = self.dxy_model.get_confidence_bonus(pair, lstm_signal)
+
+        # Step 5b: Fed Sentiment Model (Monthly - FOMC)
+        fed_sentiment = self.fed_sentiment.get_current_sentiment()
+        combined_macro = self.fed_sentiment.get_combined_macro_signal(pair, dxy_analysis)
+
+        # Use combined bonus instead of just DXY
+        macro_bonus = combined_macro['alignment_bonus']
+        if combined_macro['combined_signal'] == lstm_signal:
+            macro_bonus = abs(macro_bonus)  # Positive if aligned with LSTM
+        elif combined_macro['combined_signal'] and combined_macro['combined_signal'] != lstm_signal:
+            macro_bonus = -abs(macro_bonus) if macro_bonus > 0 else macro_bonus  # Negative if conflicts
+
         result['dxy_analysis'] = dxy_analysis
-        result['dxy_bonus'] = dxy_bonus
+        result['fed_sentiment'] = fed_sentiment
+        result['combined_macro'] = combined_macro
+        result['macro_bonus'] = macro_bonus
 
         # Step 6: AI Reasoning (if available)
         if self.openai_client:
@@ -126,13 +159,17 @@ class DecisionEngine:
                 macro_context=macro_context,
                 news_analysis=news_analysis,
                 dxy_analysis=dxy_analysis,
+                fed_sentiment=fed_sentiment,
+                combined_macro=combined_macro,
+                macro_bonus=macro_bonus,
                 current_price=current_price,
                 atr=atr
             )
-            # Apply DXY bonus to confidence
-            if ai_decision.get('should_trade') and dxy_bonus > 0:
-                ai_decision['confidence'] = min(1.0, ai_decision['confidence'] + dxy_bonus)
-                ai_decision['reasoning'] += f" [DXY bonus +{dxy_bonus*100:.0f}%]"
+            # Apply combined macro bonus to confidence
+            if ai_decision.get('should_trade') and macro_bonus != 0:
+                ai_decision['confidence'] = min(1.0, max(0.3, ai_decision['confidence'] + macro_bonus))
+                bonus_str = f"+{macro_bonus*100:.0f}%" if macro_bonus > 0 else f"{macro_bonus*100:.0f}%"
+                ai_decision['reasoning'] += f" [Macro {combined_macro['alignment']} {bonus_str}]"
             result.update(ai_decision)
         else:
             # Fallback: Rule-based decision
@@ -142,10 +179,11 @@ class DecisionEngine:
                 macro_bias=macro_context['macro_bias'],
                 news_bias=news_analysis['overall_bias']
             )
-            # Apply DXY bonus to confidence
-            if rule_decision.get('should_trade') and dxy_bonus > 0:
-                rule_decision['confidence'] = min(1.0, rule_decision['confidence'] + dxy_bonus)
-                rule_decision['reasoning'] += f" [DXY bonus +{dxy_bonus*100:.0f}%]"
+            # Apply combined macro bonus to confidence
+            if rule_decision.get('should_trade') and macro_bonus != 0:
+                rule_decision['confidence'] = min(1.0, max(0.3, rule_decision['confidence'] + macro_bonus))
+                bonus_str = f"+{macro_bonus*100:.0f}%" if macro_bonus > 0 else f"{macro_bonus*100:.0f}%"
+                rule_decision['reasoning'] += f" [Macro {combined_macro['alignment']} {bonus_str}]"
             result.update(rule_decision)
 
         # Calculate SL/TP if trade approved
@@ -208,6 +246,9 @@ class DecisionEngine:
         macro_context: Dict,
         news_analysis: Dict,
         dxy_analysis: Dict,
+        fed_sentiment: Dict,
+        combined_macro: Dict,
+        macro_bonus: float,
         current_price: float,
         atr: float
     ) -> Dict:
@@ -234,21 +275,43 @@ class DecisionEngine:
 - Quote Currency ({pair[3:6]}) Sentiment: {news_analysis['quote_sentiment']:+.2f}
 - Confidence: {news_analysis['confidence']:.1%}
 
-## DXY MACRO MODEL (FED vs ECB Balance Sheet)
+## MACRO MODELS (Multi-Timeframe)
+
+### DXY Balance Sheet (Quarterly - Strategic Direction)
 - USD Bias: {dxy_analysis['usd_bias']}
 - {pair} Bias: {dxy_analysis['pair_bias']}
 - Favors: {dxy_analysis['aligned_with'] or 'NEUTRAL'}
 
+### Fed Sentiment (Monthly - Tactical Confirmation)
+- Sentiment: {fed_sentiment['sentiment']:+.3f}
+- Regime: {fed_sentiment['regime']}
+- USD Bias: {fed_sentiment['usd_bias']}
+- Momentum: {fed_sentiment['momentum']:+.3f}
+
+### Combined Macro Signal
+- Alignment: {combined_macro['alignment'].upper()}
+- Combined Signal: {combined_macro['combined_signal'] or 'NEUTRAL'}
+- Bonus/Penalty: {macro_bonus:+.0%}
+- Reasoning: {combined_macro['reasoning']}
+
+## CVOL (Currency Volatility Index)
+- Current CVOL: {result.get('cvol_status', {}).get('cvol', 'N/A')}
+- Status: {result.get('cvol_status', {}).get('status', 'N/A')}
+- Risk Adjustment: {result.get('risk_adjustment', 1.0):.0%}
+- Note: If CVOL=WARNING, position size will be reduced by 50%
+
 ## TRADING RULES
 - Only trade if LSTM confidence >= {TRADING_CONFIG['min_lstm_confidence']:.0%}
-- DXY model is a WEIGHT, not a VETO:
-  * If DXY aligns with LSTM signal → boost confidence by +10%
-  * If DXY conflicts with LSTM signal → apply -10% penalty (but DO NOT block the trade!)
-- The main driver for forex is INTEREST RATE DIFFERENTIAL, not just balance sheets
-- LSTM technical signal is PRIMARY, DXY macro is SECONDARY
+- MACRO models (DXY + Fed Sentiment) are WEIGHTS, not VETOs:
+  * DXY = Strategic direction (quarterly, balance sheet dynamics)
+  * Fed Sentiment = Tactical confirmation (monthly, FOMC stance)
+  * If BOTH align with LSTM → boost confidence +15%
+  * If BOTH conflict with LSTM → penalty -15%
+  * If ONE aligns, ONE neutral → boost +5-10%
+- LSTM technical signal is PRIMARY, macro is SECONDARY (confirmation)
 - Avoid trading only if there are HIGH-IMPACT news events in next 2 hours
 - Risk: {TRADING_CONFIG['risk_per_trade']:.2%} per trade, R:R ratio 1:2
-- If LSTM >= 66% and no high-impact events, the trade should be executed even if DXY conflicts
+- If LSTM >= 66% and no high-impact events, the trade should be executed even with macro conflicts
 
 ## YOUR TASK
 Analyze all factors and provide your decision in the following JSON format:
