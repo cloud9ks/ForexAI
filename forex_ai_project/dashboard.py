@@ -27,6 +27,10 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
+# MT5 Configuration
+MT5_LOGIN = 3000138
+MT5_SERVER = "MetaQuotes-Demo"
+
 # Page config
 st.set_page_config(
     page_title="Forex AI Dashboard",
@@ -35,12 +39,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS - Dark theme professionale
+# Custom CSS - Dark theme professionale ULTRA
 st.markdown("""
 <style>
-    /* Main background */
+    /* Import fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    * { font-family: 'Inter', sans-serif; }
+    code, pre, .stCode { font-family: 'JetBrains Mono', monospace !important; }
+
+    /* Main background - deeper dark with subtle gradient */
     .stApp {
-        background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
+        background: linear-gradient(135deg, #0a0e14 0%, #0d1117 50%, #161b22 100%);
     }
 
     /* Hide default header */
@@ -48,121 +58,305 @@ st.markdown("""
         background: transparent;
     }
 
-    /* Metric cards */
+    /* Metric cards - glassmorphism effect */
     div[data-testid="metric-container"] {
-        background: linear-gradient(135deg, #21262d 0%, #161b22 100%);
-        border: 1px solid #30363d;
-        padding: 15px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, rgba(33,38,45,0.9) 0%, rgba(22,27,34,0.9) 100%);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(48,54,61,0.8);
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.08);
     }
 
     div[data-testid="metric-container"] label {
         color: #8b949e !important;
-        font-size: 0.9rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
         color: #f0f6fc !important;
-        font-size: 1.6rem !important;
-        font-weight: 600 !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
     }
 
-    /* Sidebar */
+    /* Sidebar - sleeker design */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
-        border-right: 1px solid #30363d;
+        background: linear-gradient(180deg, #0d1117 0%, #0a0e14 100%);
+        border-right: 1px solid rgba(48,54,61,0.5);
     }
 
     section[data-testid="stSidebar"] .stMarkdown {
         color: #c9d1d9;
     }
 
-    /* Headers */
-    h1 { color: #58a6ff !important; font-weight: 600 !important; }
-    h2, h3 { color: #c9d1d9 !important; }
+    /* Headers with gradient text */
+    h1 {
+        background: linear-gradient(135deg, #58a6ff 0%, #a371f7 50%, #f778ba 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700 !important;
+    }
+    h2, h3 { color: #e6edf3 !important; font-weight: 600 !important; }
 
-    /* Tabs */
+    /* Tabs - modern pill style */
     .stTabs [data-baseweb="tab-list"] {
-        background: #21262d;
-        border-radius: 10px;
-        padding: 5px;
-        gap: 5px;
+        background: rgba(33,38,45,0.6);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 6px;
+        gap: 4px;
+        border: 1px solid rgba(48,54,61,0.5);
     }
 
     .stTabs [data-baseweb="tab"] {
         color: #8b949e;
         border-radius: 8px;
-        padding: 10px 20px;
+        padding: 12px 24px;
+        font-weight: 500;
+        transition: all 0.2s ease;
     }
 
-    .stTabs [aria-selected="true"] {
-        background: #388bfd22;
-        color: #58a6ff !important;
-        border-bottom: 2px solid #58a6ff;
-    }
-
-    /* Dataframes */
-    .stDataFrame { border: 1px solid #30363d; border-radius: 10px; }
-
-    /* Info/Alert boxes */
-    .stAlert {
-        background: #21262d;
-        border: 1px solid #30363d;
-        border-radius: 10px;
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(88,166,255,0.1);
         color: #c9d1d9;
     }
 
-    /* Buttons */
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, rgba(88,166,255,0.2) 0%, rgba(163,113,247,0.2) 100%) !important;
+        color: #58a6ff !important;
+        border: 1px solid rgba(88,166,255,0.3);
+        box-shadow: 0 0 20px rgba(88,166,255,0.2);
+    }
+
+    /* Dataframes */
+    .stDataFrame {
+        border: 1px solid rgba(48,54,61,0.5);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    /* Info/Alert boxes */
+    .stAlert {
+        background: rgba(33,38,45,0.8);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(48,54,61,0.5);
+        border-radius: 12px;
+        color: #c9d1d9;
+    }
+
+    /* Buttons - gradient with glow */
     .stButton button {
-        background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+        background: linear-gradient(135deg, #238636 0%, #2ea043 50%, #3fb950 100%);
         color: #fff;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         font-weight: 600;
-        padding: 10px 20px;
+        padding: 12px 24px;
+        box-shadow: 0 4px 15px rgba(46,160,67,0.3);
+        transition: all 0.2s ease;
     }
 
     .stButton button:hover {
-        background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
+        background: linear-gradient(135deg, #2ea043 0%, #3fb950 50%, #56d364 100%);
+        box-shadow: 0 6px 25px rgba(46,160,67,0.4);
+        transform: translateY(-1px);
     }
 
     /* Select boxes */
     .stSelectbox > div > div {
-        background: #21262d;
-        border: 1px solid #30363d;
+        background: rgba(33,38,45,0.8);
+        border: 1px solid rgba(48,54,61,0.5);
+        border-radius: 10px;
         color: #c9d1d9;
     }
 
     /* Text colors */
     p, span, label { color: #c9d1d9; }
-    hr { border-color: #30363d; }
+    hr { border-color: rgba(48,54,61,0.5); margin: 1.5rem 0; }
 
-    /* Custom signal cards */
-    .signal-card {
-        background: #21262d;
-        border-radius: 10px;
-        padding: 15px;
-        margin: 5px;
-        border-left: 4px solid;
+    /* Custom header banner */
+    .header-banner {
+        background: linear-gradient(135deg, rgba(88,166,255,0.1) 0%, rgba(163,113,247,0.1) 50%, rgba(247,120,186,0.1) 100%);
+        border: 1px solid rgba(88,166,255,0.2);
+        border-radius: 20px;
+        padding: 25px 30px;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
-    .signal-buy { border-left-color: #3fb950; }
-    .signal-sell { border-left-color: #f85149; }
-    .signal-hold { border-left-color: #8b949e; }
 
-    /* Live indicator */
+    .header-title {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-title h1 {
+        margin: 0;
+        font-size: 2rem;
+    }
+
+    .header-logo {
+        font-size: 2.5rem;
+        filter: drop-shadow(0 0 10px rgba(88,166,255,0.5));
+    }
+
+    /* Live indicator - enhanced */
+    .live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, rgba(63,185,80,0.2) 0%, rgba(63,185,80,0.1) 100%);
+        border: 1px solid rgba(63,185,80,0.3);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #3fb950;
+    }
+
     .live-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
         background: #3fb950;
         border-radius: 50%;
-        margin-right: 8px;
-        animation: pulse 2s infinite;
+        box-shadow: 0 0 10px #3fb950, 0 0 20px rgba(63,185,80,0.5);
+        animation: pulse-glow 2s infinite;
     }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+
+    @keyframes pulse-glow {
+        0%, 100% { opacity: 1; box-shadow: 0 0 10px #3fb950, 0 0 20px rgba(63,185,80,0.5); }
+        50% { opacity: 0.7; box-shadow: 0 0 5px #3fb950, 0 0 10px rgba(63,185,80,0.3); }
+    }
+
+    /* Signal cards - enhanced */
+    .signal-card {
+        background: linear-gradient(135deg, rgba(33,38,45,0.9) 0%, rgba(22,27,34,0.9) 100%);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 20px;
+        border-left: 5px solid;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+    }
+
+    .signal-card:hover {
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    }
+
+    .signal-card.buy {
+        border-left-color: #3fb950;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 0 30px rgba(63,185,80,0.05);
+    }
+
+    .signal-card.sell {
+        border-left-color: #f85149;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 0 30px rgba(248,81,73,0.05);
+    }
+
+    .signal-card.hold {
+        border-left-color: #8b949e;
+    }
+
+    .signal-pair {
+        color: #8b949e;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    .signal-direction {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .signal-confidence {
+        font-size: 1.1rem;
+        color: #c9d1d9;
+        margin-bottom: 10px;
+    }
+
+    .signal-decision {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .decision-trade {
+        background: linear-gradient(135deg, rgba(63,185,80,0.2) 0%, rgba(63,185,80,0.1) 100%);
+        color: #3fb950;
+        border: 1px solid rgba(63,185,80,0.3);
+    }
+
+    .decision-hold {
+        background: rgba(139,148,158,0.1);
+        color: #8b949e;
+        border: 1px solid rgba(139,148,158,0.3);
+    }
+
+    /* Agent status card */
+    .agent-status {
+        background: linear-gradient(135deg, rgba(33,38,45,0.9) 0%, rgba(22,27,34,0.9) 100%);
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid rgba(48,54,61,0.5);
+        margin: 15px 0;
+    }
+
+    .agent-online {
+        border-left: 4px solid #3fb950;
+    }
+
+    .agent-offline {
+        border-left: 4px solid #f85149;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #0d1117;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #484f58;
+    }
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        color: #484f58;
+        font-size: 0.8rem;
+        padding: 20px;
+        margin-top: 30px;
+        border-top: 1px solid rgba(48,54,61,0.3);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -173,9 +367,20 @@ st.markdown("""
 # ============================================================================
 @st.cache_resource
 def init_mt5():
+    # First try to initialize (will use currently logged in account)
     if not mt5.initialize():
         return None
-    return mt5.account_info()
+
+    # Check if we're on the correct account
+    account = mt5.account_info()
+    if account and account.login != MT5_LOGIN:
+        # Different account, try to switch (note: may need password)
+        mt5.shutdown()
+        if not mt5.initialize():
+            return None
+        account = mt5.account_info()
+
+    return account
 
 
 def get_account_info():
@@ -571,14 +776,22 @@ Se dai un'opinione di trading, specifica sempre il livello di rischio.
 # DASHBOARD LAYOUT
 # ============================================================================
 def main():
-    # Header con live indicator
-    col_title, col_live = st.columns([6, 1])
-    with col_title:
-        st.markdown("## 📈 FOREX AI TRADING DASHBOARD")
-    with col_live:
-        st.markdown(f"<div style='text-align:right; padding-top:15px;'><span class='live-dot'></span>LIVE</div>", unsafe_allow_html=True)
-
-    st.markdown("---")
+    # Header banner moderno
+    st.markdown("""
+    <div class="header-banner">
+        <div class="header-title">
+            <span class="header-logo">🤖</span>
+            <div>
+                <h1 style="margin:0; font-size:1.8rem;">FOREX AI TRADING</h1>
+                <p style="margin:0; color:#8b949e; font-size:0.9rem;">Powered by LSTM + GPT-5.1 + DXY Model</p>
+            </div>
+        </div>
+        <div class="live-badge">
+            <span class="live-dot"></span>
+            LIVE TRADING
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Initialize MT5
     account = init_mt5()
@@ -615,26 +828,41 @@ def main():
 
         st.markdown("---")
 
-        # Agent Status
+        # Agent Status - Enhanced
         st.markdown("### 🤖 Trading Agent")
         log_lines = read_agent_log()
         if log_lines:
-            st.success("● RUNNING")
-            # Get last cycle time
+            last_cycle = None
             for line in reversed(log_lines):
                 if 'TRADING CYCLE' in line:
                     match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
                     if match:
-                        st.caption(f"Ultimo ciclo: {match.group(1)}")
+                        last_cycle = match.group(1)
                     break
-        else:
-            st.error("● OFFLINE")
 
-        st.markdown("""
-        **Mode:** DEMO
-        **Pairs:** EURUSD, GBPUSD, USDJPY, AUDUSD
-        **Confidence min:** 70%
-        """)
+            st.markdown(f"""
+            <div class="agent-status agent-online">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                    <div style="width:12px; height:12px; background:#3fb950; border-radius:50%; box-shadow:0 0 10px #3fb950;"></div>
+                    <span style="color:#3fb950; font-weight:600; font-size:1rem;">ONLINE</span>
+                </div>
+                <div style="color:#8b949e; font-size:0.8rem;">
+                    <div style="margin-bottom:5px;">📅 Last: {last_cycle or 'N/A'}</div>
+                    <div style="margin-bottom:5px;">🎯 Mode: <span style="color:#58a6ff;">DEMO</span></div>
+                    <div style="margin-bottom:5px;">📊 Pairs: 4</div>
+                    <div>🔒 Min Conf: <span style="color:#f0883e;">66%</span></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="agent-status agent-offline">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:12px; height:12px; background:#f85149; border-radius:50%;"></div>
+                    <span style="color:#f85149; font-weight:600;">OFFLINE</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
         st.markdown("---")
 
@@ -679,7 +907,7 @@ def main():
     analyses = parse_last_analysis(log_lines)
 
     if analyses:
-        st.markdown("### 🎯 Ultimi Segnali AI")
+        st.markdown("### 🎯 AI Signals Dashboard")
         cols = st.columns(4)
         for i, (pair, data) in enumerate(analyses.items()):
             with cols[i % 4]:
@@ -687,15 +915,40 @@ def main():
                 conf = data.get('confidence', 0)
                 decision = data.get('decision', 'HOLD')
 
-                color = '#3fb950' if signal == 'BUY' else '#f85149' if signal == 'SELL' else '#8b949e'
-                dec_color = '#3fb950' if decision in ['BUY', 'SELL'] else '#8b949e'
+                # Determina colori e classe
+                if signal == 'BUY':
+                    color = '#3fb950'
+                    card_class = 'buy'
+                    icon = '📈'
+                elif signal == 'SELL':
+                    color = '#f85149'
+                    card_class = 'sell'
+                    icon = '📉'
+                else:
+                    color = '#8b949e'
+                    card_class = 'hold'
+                    icon = '⏸️'
+
+                decision_class = 'decision-trade' if decision in ['BUY', 'SELL'] else 'decision-hold'
+                conf_bar_width = min(conf, 100)
+                conf_color = '#3fb950' if conf >= 66 else '#f0883e' if conf >= 50 else '#f85149'
 
                 st.markdown(f"""
-                <div style="background:#21262d; border-radius:10px; padding:15px; border-left:4px solid {color}; margin-bottom:10px;">
-                    <div style="color:#8b949e; font-size:0.8rem;">{pair}</div>
-                    <div style="color:{color}; font-size:1.4rem; font-weight:bold;">{signal}</div>
-                    <div style="color:#c9d1d9; font-size:0.9rem;">Conf: {conf:.1f}%</div>
-                    <div style="color:{dec_color}; font-size:0.8rem; margin-top:5px;">→ {decision}</div>
+                <div class="signal-card {card_class}">
+                    <div class="signal-pair">{icon} {pair}</div>
+                    <div class="signal-direction" style="color:{color};">{signal}</div>
+                    <div class="signal-confidence">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span>Confidence</span>
+                            <span style="color:{conf_color}; font-weight:600;">{conf:.1f}%</span>
+                        </div>
+                        <div style="background:rgba(48,54,61,0.5); border-radius:10px; height:8px; overflow:hidden;">
+                            <div style="background:linear-gradient(90deg, {conf_color}, {conf_color}aa); width:{conf_bar_width}%; height:100%; border-radius:10px;"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <span class="signal-decision {decision_class}">→ {decision}</span>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
         st.markdown("")
@@ -1059,9 +1312,32 @@ def main():
     # Footer
     st.markdown("---")
     if acc_info:
-        st.markdown(f"<div style='text-align:center; color:#8b949e; font-size:0.8rem;'>Last update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Account: {acc_info['login']} @ {acc_info['server']}</div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="footer">
+            <div style="display:flex; justify-content:center; align-items:center; gap:20px; flex-wrap:wrap;">
+                <span>🕐 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
+                <span>|</span>
+                <span>👤 Account: <strong>{acc_info['login']}</strong></span>
+                <span>|</span>
+                <span>🖥️ {acc_info['server']}</span>
+                <span>|</span>
+                <span style="color:#3fb950;">● Connected</span>
+            </div>
+            <div style="margin-top:10px; color:#30363d;">
+                Forex AI Trading System v2.0 • LSTM + GPT-5.1 + DXY Model
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.markdown(f"<div style='text-align:center; color:#8b949e; font-size:0.8rem;'>Last update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | MT5 Disconnected</div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="footer">
+            <div style="display:flex; justify-content:center; align-items:center; gap:20px;">
+                <span>🕐 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
+                <span>|</span>
+                <span style="color:#f85149;">● MT5 Disconnected</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Auto refresh
     if auto_refresh:

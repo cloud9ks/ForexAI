@@ -29,7 +29,7 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agent.config import TRADING_CONFIG, LOGGING_CONFIG
+from agent.config import TRADING_CONFIG, LOGGING_CONFIG, MT5_CONFIG
 from agent.decision_engine import get_decision_engine
 from agent.macro_analyzer import get_macro_analyzer
 from agent.news_sentiment import get_news_analyzer
@@ -215,8 +215,19 @@ class AITradingAgent:
 
     def connect_broker(self):
         """Connect to MetaTrader 5."""
-        if not mt5.initialize():
-            raise Exception(f"MT5 initialization failed: {mt5.last_error()}")
+        # Try to initialize with specific account if configured
+        if MT5_CONFIG.get('login') and MT5_CONFIG.get('password'):
+            if not mt5.initialize(
+                login=MT5_CONFIG['login'],
+                password=MT5_CONFIG['password'],
+                server=MT5_CONFIG.get('server', '')
+            ):
+                logger.warning(f"MT5 login failed for {MT5_CONFIG['login']}, trying default...")
+                if not mt5.initialize():
+                    raise Exception(f"MT5 initialization failed: {mt5.last_error()}")
+        else:
+            if not mt5.initialize():
+                raise Exception(f"MT5 initialization failed: {mt5.last_error()}")
 
         account = mt5.account_info()
         if account:

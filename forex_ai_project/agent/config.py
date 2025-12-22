@@ -88,6 +88,13 @@ NEWS_CONFIG = {
     'max_news_age_hours': 24,
 }
 
+# MetaTrader 5 Configuration
+MT5_CONFIG = {
+    'login': 3000138,
+    'password': os.getenv("MT5_PASSWORD", ""),
+    'server': "MetaQuotes-Demo",
+}
+
 # Logging
 LOGGING_CONFIG = {
     'log_file': 'agent_trading.log',

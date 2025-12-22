@@ -240,10 +240,15 @@ class DecisionEngine:
 - Favors: {dxy_analysis['aligned_with'] or 'NEUTRAL'}
 
 ## TRADING RULES
-- Only trade if LSTM confidence > 70%
-- Prefer trades where technical, macro, sentiment, and DXY align
-- Avoid trading before high-impact news events
-- Risk: 0.65% per trade, R:R ratio 1:2
+- Only trade if LSTM confidence >= {TRADING_CONFIG['min_lstm_confidence']:.0%}
+- DXY model is a WEIGHT, not a VETO:
+  * If DXY aligns with LSTM signal → boost confidence by +10%
+  * If DXY conflicts with LSTM signal → apply -10% penalty (but DO NOT block the trade!)
+- The main driver for forex is INTEREST RATE DIFFERENTIAL, not just balance sheets
+- LSTM technical signal is PRIMARY, DXY macro is SECONDARY
+- Avoid trading only if there are HIGH-IMPACT news events in next 2 hours
+- Risk: {TRADING_CONFIG['risk_per_trade']:.2%} per trade, R:R ratio 1:2
+- If LSTM >= 66% and no high-impact events, the trade should be executed even if DXY conflicts
 
 ## YOUR TASK
 Analyze all factors and provide your decision in the following JSON format:
